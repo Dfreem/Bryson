@@ -244,6 +244,30 @@ a.login-button:visited {
     background: #3d1f08;
 }
 
+.sidebar-clear-btn,
+.sidebar-clear-btn:link,
+.sidebar-clear-btn:visited {
+    background: #888 !important;
+    color: #fff !important;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.15s;
+    white-space: nowrap;
+    text-decoration: none !important;
+    display: inline-block;
+    line-height: normal;
+}
+
+.sidebar-clear-btn:hover,
+.sidebar-clear-btn:focus {
+    background: #555 !important;
+    color: #fff !important;
+    text-decoration: none !important;
+}
+
 /* ── In Stock Toggle ── */
 .sidebar-toggle-label {
     display: flex;

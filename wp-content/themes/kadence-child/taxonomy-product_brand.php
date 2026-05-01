@@ -15,34 +15,75 @@ function build_breadcrumb($brand, $shop_url)
     return $output;
 }
 
-$search  = isset($_GET['q'])      ? sanitize_text_field($_GET['q'])  : '';
+$search  = isset($_GET['q'])       ? sanitize_text_field($_GET['q']) : '';
 $instock = isset($_GET['instock']) ? '1'                              : '';
 
-$args = [
-    'status'  => 'publish',
-    'limit'   => -1,
-    'orderby' => 'title',
-    'order'   => 'ASC',
+$query_args = [
+    'post_type'      => 'product',
+    'post_status'    => 'publish',
+    'posts_per_page' => -1,
+    'orderby'        => 'title',
+    'order'          => 'ASC',
 ];
 
-$tax_query = [[
-    'taxonomy' => 'product_brand',
-    'field'    => 'slug',
-    'terms'    => $current_brand->slug,
-]];
+if (empty($search)) {
+    $query_args['tax_query'] = [[
+        'taxonomy' => 'product_brand',
+        'field'    => 'slug',
+        'terms'    => $current_brand->slug,
+    ]];
+}
 
 if (!empty($search)) {
-    $args['search'] = $search;
-} else {
-    $args['tax_query'] = $tax_query;
+    $search_where_filter = function ($where) use ($search) {
+        global $wpdb;
+        $like = '%' . $wpdb->esc_like($search) . '%';
+        $where .= $wpdb->prepare(
+            " AND ({$wpdb->posts}.post_title LIKE %s
+               OR {$wpdb->posts}.post_excerpt LIKE %s
+               OR {$wpdb->posts}.post_content LIKE %s
+               OR EXISTS (
+                   SELECT 1 FROM {$wpdb->postmeta}
+                   WHERE post_id = {$wpdb->posts}.ID
+                     AND meta_key = '_sku'
+                     AND meta_value LIKE %s
+               ))",
+            $like,
+            $like,
+            $like,
+            $like
+        );
+        return $where;
+    };
+    add_filter('posts_where', $search_where_filter);
 }
 
 if ($instock === '1') {
-    $args['stock_status'] = 'instock';
+    $query_args['meta_query'] = [[
+        'key'   => '_stock_status',
+        'value' => 'instock',
+    ]];
 }
 
-$products = wc_get_products($args);
-$pcount   = count($products);
+$wp_query = new WP_Query($query_args);
+
+if (!empty($search)) {
+    remove_filter('posts_where', $search_where_filter);
+}
+
+$products = [];
+foreach ($wp_query->posts as $post) {
+    $wc_product = wc_get_product($post->ID);
+    if ($wc_product) {
+        $products[] = $wc_product;
+    }
+}
+
+if ($instock === '1') {
+    $products = array_values(array_filter($products, fn($p) => $p->is_in_stock()));
+}
+
+$pcount = count($products);
 
 $cart_quantities = [];
 foreach (WC()->cart->get_cart() as $cart_item) {

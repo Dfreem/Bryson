@@ -14,9 +14,10 @@
         ? $args['current_brand']
         : null;
 
-    $base_url = $current_brand ? get_term_link($current_brand) : $shop_url;
+    $base_url    = $current_brand ? get_term_link($current_brand) : $shop_url;
+    $current_path = strtok($_SERVER['REQUEST_URI'], '?');
     ?>
-    <form method="GET" action="<?php echo esc_url($base_url); ?>">
+    <form method="GET" action="<?php echo esc_url($current_path); ?>">
 
         <!-- Search -->
         <div class="sidebar-section">
@@ -29,6 +30,7 @@
                     placeholder="Search products..."
                     value="<?php echo esc_attr($current_search); ?>">
                 <button type="submit" class="sidebar-search-btn">Go</button>
+                <a href="<?php echo esc_url($current_path); ?>" class="sidebar-clear-btn">Clear</a>
             </div>
         </div>
 
