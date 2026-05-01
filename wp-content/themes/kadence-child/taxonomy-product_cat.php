@@ -119,7 +119,27 @@ function build_breadcrumb($cat, $shop_url)
                 }
 
                 if (!empty($search)) {
-                    $query_args['s'] = $search;
+                    $search_where_filter = function ($where) use ($search) {
+                        global $wpdb;
+                        $like = '%' . $wpdb->esc_like($search) . '%';
+                        $where .= $wpdb->prepare(
+                            " AND ({$wpdb->posts}.post_title LIKE %s
+                               OR {$wpdb->posts}.post_excerpt LIKE %s
+                               OR {$wpdb->posts}.post_content LIKE %s
+                               OR EXISTS (
+                                   SELECT 1 FROM {$wpdb->postmeta}
+                                   WHERE post_id = {$wpdb->posts}.ID
+                                     AND meta_key = '_sku'
+                                     AND meta_value LIKE %s
+                               ))",
+                            $like,
+                            $like,
+                            $like,
+                            $like
+                        );
+                        return $where;
+                    };
+                    add_filter('posts_where', $search_where_filter);
                 }
 
                 if ($instock === '1') {
@@ -130,6 +150,10 @@ function build_breadcrumb($cat, $shop_url)
                 }
 
                 $wp_query = new WP_Query($query_args);
+
+                if (!empty($search)) {
+                    remove_filter('posts_where', $search_where_filter);
+                }
                 $products = [];
                 foreach ($wp_query->posts as $post) {
                     $wc_product = wc_get_product($post->ID);
@@ -137,10 +161,6 @@ function build_breadcrumb($cat, $shop_url)
                         $products[] = $wc_product;
                     }
                 }
-                if ($instock === '1') {
-                    $products = array_values(array_filter($products, fn($p) => $p->is_in_stock()));
-                }
-
                 $pcount = count($products);
                 $cart_quantities = [];
                 foreach (WC()->cart->get_cart() as $cart_item) {
