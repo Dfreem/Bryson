@@ -10,44 +10,6 @@
 if (! defined('ABSPATH')) exit;
 
 // Add wholesale_price to export
-add_filter('woocommerce_product_export_column_names', 'bryson_add_export_columns');
-add_filter('woocommerce_product_export_product_default_columns', 'bryson_add_export_columns');
-function bryson_add_export_columns($columns)
-{
-    $columns['wholesale_price'] = 'Wholesale Price';
-    return $columns;
-}
-
-add_filter('woocommerce_product_export_product_column_wholesale_price', 'bryson_export_wholesale_price', 10, 2);
-function bryson_export_wholesale_price($value, $product)
-{
-    return $product->get_meta('_wholesale_price', true, 'edit');
-}
-
-// Add wholesale_price to import
-add_filter('woocommerce_csv_product_import_mapping_options', 'bryson_add_import_columns');
-function bryson_add_import_columns($options)
-{
-    $options['wholesale_price'] = 'Wholesale Price';
-    return $options;
-}
-
-add_filter('woocommerce_csv_product_import_mapping_default_columns', 'bryson_add_import_mapping');
-function bryson_add_import_mapping($columns)
-{
-    $columns['Wholesale Price'] = 'wholesale_price';
-    $columns['wholesale_price'] = 'wholesale_price';
-    return $columns;
-}
-
-add_filter('woocommerce_product_import_pre_insert_product_object', 'bryson_import_wholesale_price', 10, 2);
-function bryson_import_wholesale_price($product, $data)
-{
-    if (isset($data['wholesale_price']) && $data['wholesale_price'] !== '') {
-        $product->update_meta_data('_wholesale_price', wc_format_decimal($data['wholesale_price']));
-    }
-    return $product;
-}
 
 add_action('admin_footer', function () {
     if (! isset($_GET['page']) || $_GET['page'] !== 'product_exporter') return;
@@ -69,8 +31,8 @@ add_action('admin_footer', function () {
                 'tax_status', 'tax_class', 'stock', 'stock_status',
                 'low_stock_amount', 'backorders',
                 'weight', 'length', 'width', 'height',
-                'sale_price', 'regular_price', 'wholesale_price',
-                'brands'
+                'sale_price', 'regular_price',
+                'brand_ids'
             ];
 
             var $colSelect = $('#woocommerce-exporter-columns');
@@ -82,6 +44,7 @@ add_action('admin_footer', function () {
     </script>
 <?php
 });
+
 
 // Add brand filter row via the hook
 add_action('woocommerce_product_export_row', function () {
@@ -106,3 +69,62 @@ add_action('woocommerce_product_export_row', function () {
     </tr>
 <?php
 });
+
+// Sort packing slip line items by SKU
+add_filter('wpo_wcpdf_order_items_data', function ($data_list, $order, $document_type) {
+    if ($document_type !== 'packing-slip') return $data_list;
+
+    uasort($data_list, function ($a, $b) {
+        $sku_a = isset($a['sku']) ? $a['sku'] : '';
+        $sku_b = isset($b['sku']) ? $b['sku'] : '';
+        return strcmp($sku_a, $sku_b);
+    });
+
+    return $data_list;
+}, 10, 3);
+
+add_filter('wpo_wcpdf_template_file', function ($file_path, $document_type, $order) {
+    $filename   = basename($file_path);
+    $custom     = plugin_dir_path(__FILE__) . 'templates/Simple/' . $filename;
+    if ($document_type === 'packing-slip' && file_exists($custom)) {
+        return $custom;
+    }
+    return $file_path;
+}, 10, 3);
+
+// Add Regular Price column to products list
+add_filter('manage_product_posts_columns', function ($columns) {
+    $new = [];
+    foreach ($columns as $key => $value) {
+        $new[$key] = $value;
+        if ($key === 'price') {
+            $new['regular_price'] = 'Regular Price';
+        }
+    }
+    return $new;
+});
+
+add_action('manage_product_posts_custom_column', function ($column, $post_id) {
+    if ($column === 'regular_price') {
+        $product = wc_get_product($post_id);
+        if ($product) {
+            echo esc_html(wc_price($product->get_regular_price()));
+        }
+    }
+}, 10, 25);
+
+add_filter('wpo_wcpdf_settings_fields_documents_packing_slip', function ($settings_fields, $page, $option_group, $option_name) {
+    $settings_fields[] = array(
+        'type'     => 'setting',
+        'id'       => 'display_customer_name',
+        'title'    => __('Display customer name', 'woocommerce-pdf-invoices-packing-slips'),
+        'callback' => 'checkbox',
+        'section'  => 'packing_slip',
+        'args'     => array(
+            'option_name' => $option_name,
+            'id'          => 'display_customer_name',
+            'default'     => 0,
+        )
+    );
+    return $settings_fields;
+}, 10, 4);
