@@ -7,7 +7,6 @@
  * Create a WordPress page, set its slug to "wholesale-register",
  * and choose "Wholesale Register" as the page template.
  */
-
 if (is_user_logged_in()) {
     wp_redirect(wc_get_account_endpoint_url('dashboard'));
     exit;
@@ -23,13 +22,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['whr_nonce'])) {
 
     if (! wp_verify_nonce($_POST['whr_nonce'], 'wholesale_register')) {
         $errors[] = 'Security check failed. Please refresh and try again.';
+    } elseif (! empty($_POST['phone_number'])) {
+        $errors[] = 'Registration failed.';
     } else {
 
-        // Sanitise every field
         $fields = [
             'first_name'   => sanitize_text_field($_POST['first_name']   ?? ''),
             'last_name'    => sanitize_text_field($_POST['last_name']    ?? ''),
-            'email'        => sanitize_email($_POST['email']        ?? ''),
+            'email'        => sanitize_email($_POST['email']             ?? ''),
             'company'      => sanitize_text_field($_POST['company']      ?? ''),
             'address_1'    => sanitize_text_field($_POST['address_1']    ?? ''),
             'address_2'    => sanitize_text_field($_POST['address_2']    ?? ''),
@@ -38,27 +38,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['whr_nonce'])) {
             'postcode'     => sanitize_text_field($_POST['postcode']     ?? ''),
             'country'      => sanitize_text_field($_POST['country']      ?? ''),
             'phone'        => sanitize_text_field($_POST['phone']        ?? ''),
-            'username'     => sanitize_user($_POST['username']     ?? ''),
-            'password'     => $_POST['password']     ?? '',
-            'password2'    => $_POST['password2']    ?? '',
+            'username'     => sanitize_user($_POST['username']           ?? ''),
+            'password'     => $_POST['password']                         ?? '',
+            'password2'    => $_POST['password2']                        ?? '',
         ];
         $old = $fields;
 
-        // Validate
-        if (empty($fields['first_name']))  $errors[] = 'First name is required.';
-        if (empty($fields['last_name']))   $errors[] = 'Last name is required.';
-        if (! is_email($fields['email']))  $errors[] = 'A valid email address is required.';
-        if (email_exists($fields['email'])) $errors[] = 'That email address is already registered.';
-        if (empty($fields['company']))     $errors[] = 'Company name is required.';
-        if (empty($fields['address_1']))   $errors[] = 'Address Line 1 is required.';
-        if (empty($fields['city']))        $errors[] = 'City is required.';
-        if (empty($fields['state']))       $errors[] = 'State / Province is required.';
-        if (empty($fields['postcode']))    $errors[] = 'ZIP / Postcode is required.';
-        if (empty($fields['country']))     $errors[] = 'Country is required.';
-        if (empty($fields['phone']))       $errors[] = 'Phone number is required.';
-        if (empty($fields['username']))    $errors[] = 'A login / username is required.';
-        if (username_exists($fields['username'])) $errors[] = 'That username is already taken.';
-        if (strlen($fields['password']) < 8) $errors[] = 'Password must be at least 8 characters.';
+        if (empty($fields['first_name']))            $errors[] = 'First name is required.';
+        if (empty($fields['last_name']))             $errors[] = 'Last name is required.';
+        if (! is_email($fields['email']))            $errors[] = 'A valid email address is required.';
+        if (email_exists($fields['email']))          $errors[] = 'That email address is already registered.';
+        if (empty($fields['company']))               $errors[] = 'Company name is required.';
+        if (empty($fields['address_1']))             $errors[] = 'Address Line 1 is required.';
+        if (empty($fields['city']))                  $errors[] = 'City is required.';
+        if (empty($fields['state']))                 $errors[] = 'State / Province is required.';
+        if (empty($fields['postcode']))              $errors[] = 'ZIP / Postcode is required.';
+        if (empty($fields['country']))               $errors[] = 'Country is required.';
+        if (empty($fields['phone']))                 $errors[] = 'Phone number is required.';
+        if (empty($fields['username']))              $errors[] = 'A login / username is required.';
+        if (username_exists($fields['username']))    $errors[] = 'That username is already taken.';
+        if (strlen($fields['password']) < 8)         $errors[] = 'Password must be at least 8 characters.';
         if ($fields['password'] !== $fields['password2']) $errors[] = 'Passwords do not match.';
 
         if (empty($errors)) {
@@ -69,40 +68,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['whr_nonce'])) {
                 'first_name'   => $fields['first_name'],
                 'last_name'    => $fields['last_name'],
                 'display_name' => $fields['first_name'] . ' ' . $fields['last_name'],
-                'role'         => 'pending_wholesale', // custom role — see functions.php
+                'role'         => 'pending_wholesale',
             ]);
 
             if (is_wp_error($user_id)) {
                 $errors[] = $user_id->get_error_message();
             } else {
-                // Save extra meta
                 $meta_map = [
-                    'billing_company'   => $fields['company'],
-                    'billing_address_1' => $fields['address_1'],
-                    'billing_address_2' => $fields['address_2'],
-                    'billing_city'      => $fields['city'],
-                    'billing_state'     => $fields['state'],
-                    'billing_postcode'  => $fields['postcode'],
-                    'billing_country'   => $fields['country'],
-                    'billing_phone'     => $fields['phone'],
+                    'billing_company'    => $fields['company'],
+                    'billing_address_1'  => $fields['address_1'],
+                    'billing_address_2'  => $fields['address_2'],
+                    'billing_city'       => $fields['city'],
+                    'billing_state'      => $fields['state'],
+                    'billing_postcode'   => $fields['postcode'],
+                    'billing_country'    => $fields['country'],
+                    'billing_phone'      => $fields['phone'],
                     'billing_first_name' => $fields['first_name'],
-                    'billing_last_name' => $fields['last_name'],
-                    'billing_email'     => $fields['email'],
-                    'whr_pending'       => '1',
+                    'billing_last_name'  => $fields['last_name'],
+                    'billing_email'      => $fields['email'],
+                    'whr_pending'        => '1',
                 ];
                 foreach ($meta_map as $key => $value) {
                     update_user_meta($user_id, $key, $value);
                 }
 
-                // DEBUG: confirm billing name meta survived registration
-                error_log(sprintf(
-                    '[WHR DEBUG] post-registration user %d — billing_first_name="%s" billing_last_name="%s"',
-                    $user_id,
-                    get_user_meta($user_id, 'billing_first_name', true),
-                    get_user_meta($user_id, 'billing_last_name', true)
-                ));
-
-                // Notify admin
                 // whr_notify_admin_new_application($user_id, $fields);
 
                 $success = true;
@@ -225,6 +214,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['whr_nonce'])) {
                             <label for="country">Country <span>*</span></label>
                             <input type="text" id="country" name="country" required
                                 value="<?php echo esc_attr($old['country'] ?? ''); ?>">
+                            <input type="text" name="phone_number" value="" autocomplete="off" tabindex="-1" aria-hidden="true" style="position:absolute;left:-9999px;" />
                         </div>
                     </div>
                 </fieldset>

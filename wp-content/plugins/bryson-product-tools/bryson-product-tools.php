@@ -24,22 +24,22 @@ add_action('admin_footer', function () {
             });
             $('#woocommerce-exporter-category').trigger('change');
 
-            // Pre-select default columns
-            var defaultColumns = [
-                'id', 'type', 'sku', 'name', 'description',
-                'date_on_sale_from', 'date_on_sale_to',
-                'tax_status', 'tax_class', 'stock', 'stock_status',
-                'low_stock_amount', 'backorders',
-                'weight', 'length', 'width', 'height',
-                'sale_price', 'regular_price',
-                'brand_ids'
-            ];
+            // // Pre-select default columns
+            // var defaultColumns = [
+            //     'id', 'type', 'sku', 'name', 'description',
+            //     'date_on_sale_from', 'date_on_sale_to',
+            //     'tax_status', 'tax_class', 'stock', 'stock_status',
+            //     'low_stock_amount', 'backorders',
+            //     'weight', 'length', 'width', 'height',
+            //     'sale_price', 'regular_price',
+            //     'brand_ids'
+            // ];
 
-            var $colSelect = $('#woocommerce-exporter-columns');
-            $colSelect.find('option').each(function() {
-                $(this).prop('selected', defaultColumns.indexOf($(this).val()) !== -1);
-            });
-            $colSelect.trigger('change');
+            // var $colSelect = $('#woocommerce-exporter-columns');
+            // $colSelect.find('option').each(function() {
+            //     $(this).prop('selected', defaultColumns.indexOf($(this).val()) !== -1);
+            // });
+            // $colSelect.trigger('change');
         });
     </script>
 <?php

@@ -344,7 +344,7 @@ add_action('save_post_store', function ($post_id) {
 
 //  Adds the Staff Guide to the admin menu
 add_action('admin_menu', function () {
-    $pdf_url = get_stylesheet_directory_uri() . '/bryson_wp_guide.html';
+    $pdf_url = get_stylesheet_directory_uri() . '/bryson_wp_guide.pdf';
 
     add_menu_page(
         'Staff Guide',
@@ -612,3 +612,5 @@ add_filter('woocommerce_billing_fields', function ($fields) {
 add_filter('register_url', function () {
     return home_url('/wholesale-register');
 });
+
+add_filter('woocommerce_checkout_show_terms', '__return_false');

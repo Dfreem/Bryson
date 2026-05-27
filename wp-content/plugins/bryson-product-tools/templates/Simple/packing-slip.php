@@ -119,14 +119,23 @@
 <table class="order-details">
 	<thead>
 		<tr>
-			<?php foreach (wpo_wcpdf_get_simple_template_default_table_headers($this) as $column_class => $column_title) : ?>
+			<?php
+			$default_headers = wpo_wcpdf_get_simple_template_default_table_headers($this);
+			unset($default_headers['quantity']); // rendered manually in correct column order
+			foreach ($default_headers as $column_class => $column_title) : ?>
 				<th class="<?php echo esc_attr($column_class); ?>"><?php echo esc_html($column_title); ?></th>
 			<?php endforeach; ?>
-			<th class="wholesale-price" style="text-align: center;">Wholesale Price</th>
+			<th class="unit-price" style="text-align: center;">Unit Price</th>
+			<th class="quantity" style="text-align: center;">Qty</th>
+			<th class="line-total" style="text-align: center;">Total</th>
 		</tr>
 	</thead>
 	<tbody>
-		<?php foreach ($this->get_order_items() as $item_id => $item) : ?>
+		<?php foreach ($this->get_order_items() as $item_id => $item) :
+			$wholesale_raw = get_post_meta($item['product_id'], 'wholesale_customer_wholesale_price', true);
+			$unit_price    = (float) preg_replace('/[^0-9.]/', '', $wholesale_raw);
+			$line_total    = $unit_price * (int) $item['quantity'];
+		?>
 			<tr class="<?php echo esc_html($item['row_class']); ?>">
 				<td class="product">
 					<p class="item-name"><?php echo esc_html($item['name']); ?></p>
@@ -138,21 +147,18 @@
 						<?php if (! empty($item['weight'])) : ?>
 							<p class="weight"><span class="label"><?php $this->weight_title(); ?></span> <?php echo esc_attr($item['weight']); ?><?php echo esc_attr(get_option('woocommerce_weight_unit')); ?></p>
 						<?php endif; ?>
-						<!-- ul.wc-item-meta -->
 						<?php if (! empty($item['meta'])) : ?>
 							<?php echo wp_kses_post($item['meta']); ?>
 						<?php endif; ?>
-						<!-- / ul.wc-item-meta -->
 					</div>
 					<?php do_action('wpo_wcpdf_after_item_meta', $this->get_type(), $item, $this->order); ?>
 				</td>
-				<td class="quantity"><?php echo esc_html($item['quantity']); ?></td>
-				<td class="wholesale-price" style="text-align: center;">
-					<?php
-					$wholesale = get_post_meta($item['product_id'], 'wholesale_customer_wholesale_price', true);
-					$wholesale = preg_replace('/[^0-9.]/', '', $wholesale);
-					echo $wholesale ? esc_html(wc_price((float)$wholesale)) : '&mdash;';
-					?>
+				<td class="unit-price" style="text-align: center;">
+					<?php echo $unit_price ? esc_html(wc_price($unit_price)) : '&mdash;'; ?>
+				</td>
+				<td class="quantity" style="text-align: center;"><?php echo esc_html($item['quantity']); ?></td>
+				<td class="line-total" style="text-align: center; font-weight: 600;">
+					<?php echo $line_total ? esc_html(wc_price($line_total)) : '&mdash;'; ?>
 				</td>
 			</tr>
 		<?php endforeach; ?>
@@ -160,15 +166,24 @@
 	<tfoot>
 		<tr style="border-top: 2px solid black;">
 			<td class="product"><strong>Total</strong></td>
-			<td class="quantity"></td>
-			<td class="wholesale-price" style="text-align: center;">
+			<td class="unit-price"></td>
+			<td class="quantity" style="text-align: center;">
 				<?php
-				$total = 0;
+				$total_qty = 0;
+				foreach ($this->get_order_items() as $item) {
+					$total_qty += (int) $item['quantity'];
+				}
+				echo esc_html($total_qty);
+				?>
+			</td>
+			<td class="line-total" style="text-align: center; font-weight: 600;">
+				<?php
+				$grand_total = 0;
 				foreach ($this->get_order_items() as $item) {
 					$wholesale = get_post_meta($item['product_id'], 'wholesale_customer_wholesale_price', true);
-					$total += (float) $wholesale * $item['quantity'];
+					$grand_total += (float) preg_replace('/[^0-9.]/', '', $wholesale) * (int) $item['quantity'];
 				}
-				echo esc_html(wc_price($total));
+				echo esc_html(wc_price($grand_total));
 				?>
 			</td>
 		</tr>
@@ -191,9 +206,7 @@
 <?php if ($this->get_footer()) : ?>
 	<htmlpagefooter name="docFooter"><!-- required for mPDF engine -->
 		<div id="footer">
-			<!-- hook available: wpo_wcpdf_before_footer -->
 			<?php $this->footer(); ?>
-			<!-- hook available: wpo_wcpdf_after_footer -->
 		</div>
 	</htmlpagefooter><!-- required for mPDF engine -->
 <?php endif; ?>
