@@ -3,12 +3,6 @@ defined('ABSPATH') || exit;
 get_header('shop');
 
 $current_cat   = get_queried_object();
-// if (!($current_cat instanceof WP_Term)) {
-//     $current_cat = null;
-// }
-// $new_stuff_slug = 'new-stuff';
-// $new_stuff    = get_term_by('slug', $new_stuff_slug, 'product_cat');
-// $new_stuff_id = ($new_stuff && !is_wp_error($new_stuff)) ? $new_stuff->term_id : 0;
 $shop_url      = get_permalink(wc_get_page_id('shop'));
 
 function distinct_by(array $items, callable $key_fn): array
@@ -27,7 +21,7 @@ $categories = get_terms(array(
     'order'      => 'ASC',
     'orderby'    => 'meta_value_num',
 ));
-$categories = distinct_by($categories, fn($cat) => strtolower($cat->name));
+// $categories = distinct_by($categories, fn($cat) => strtolower($cat->name));
 usort($categories, function ($a, $b) {
     $order_a = (int) get_term_meta($a->term_id, 'order', true);
     $order_b = (int) get_term_meta($b->term_id, 'order', true);
@@ -68,78 +62,16 @@ function build_breadcrumb($cat, $shop_url)
 <div class="tree-path">
     <?php echo build_breadcrumb($current_cat, $shop_url); ?>
 </div>
-<div class="catalog-wrap">
-    <div class="product-tree">
-        <div class="tree-content pb-5">
-            <?php
-            $search  = isset($_GET['q'])      ? sanitize_text_field($_GET['q']) : '';
-            $instock = isset($_GET['instock']) ? '1' : '';
-            $is_filtered = !empty($search) || !empty($instock);
-            ?>
-
-            <?php if ($is_filtered) : ?>
+<div class="d-flex flex-column flex-md-row-reverse gap-b w-100">
+    <?php get_template_part('bryson-sidebar', null, ['current_cat' => null]); ?>
+    <div class="catalog-wrap w-100">
+        <div class="product-tree w-100">
+            <div class="tree-content pb-5 w-100">
                 <?php
-                $query_args = [
-                    'post_type'      => 'product',
-                    'post_status'    => 'publish',
-                    'posts_per_page' => -1,
-                    'orderby'        => 'title',
-                    'order'          => 'ASC',
-                ];
-
-                if (!empty($search)) {
-                    $query_args['s']              = $search;
-                    $query_args['search_columns'] = ['post_title'];
-                }
-
-                if (!empty($instock)) {
-                    $query_args['meta_query'] = [[
-                        'key'   => '_stock_status',
-                        'value' => 'instock',
-                    ]];
-                }
-
-
-                $query    = new WP_Query($query_args);
-                $products = [];
-                foreach ($query->posts as $post) {
-                    $wc_product = wc_get_product($post->ID);
-                    if ($wc_product) {
-                        $products[] = $wc_product;
-                    }
-                }
-                $pcount = count($products);
-                $cart_quantities = [];
-                foreach (WC()->cart->get_cart() as $cart_item) {
-                    $cart_quantities[$cart_item['product_id']] = $cart_item['quantity'];
-                }
+                $search  = isset($_GET['q'])      ? sanitize_text_field($_GET['q']) : '';
+                $instock = isset($_GET['instock']) ? '1' : '';
+                $is_filtered = !empty($search) || !empty($instock);
                 ?>
-
-                <form id="bulk-order-form" class="row row-cols-1 row-cols-md-3 row-cols-xl-4 g-3">
-                    <?php if ($pcount === 0) : ?>
-                        <p>No products found.</p>
-                    <?php endif; ?>
-                    <?php foreach ($products as $pi => $product) :
-                        $pid = $product->get_id();
-                    ?>
-                        <div class="order-row">
-                            <input
-                                type="number"
-                                class="order-qty"
-                                data-product-id="<?php echo esc_attr($pid); ?>"
-                                value="<?php echo esc_attr($cart_quantities[$pid] ?? 0); ?>"
-                                min="0"
-                                style="width:6em; margin: 0 8px;">
-                            <a href="<?php echo esc_url(get_permalink($pid)); ?>" class="file">
-                                <?php echo esc_html($product->get_name()); ?>
-                            </a>
-                            <img class="tree-row-image" width="80"
-                                src="<?php echo esc_url(wp_get_attachment_url($product->get_image_id())); ?>"
-                                alt="<?php echo esc_attr($product->get_name()); ?>" />
-                        </div>
-                    <?php endforeach; ?>
-                </form>
-            <?php else : ?>
                 <?php foreach ($categories as $i => $cat) :
                     $is_last = ($i === $count - 1);
                     $prefix  = $is_last ? '└── ' : '├── ';
@@ -159,9 +91,8 @@ function build_breadcrumb($cat, $shop_url)
                         </div>
                     <?php endif; ?>
                 <?php endforeach; ?>
-            <?php endif; ?>
+            </div>
         </div>
     </div>
-    <?php get_template_part('bryson-sidebar', null, ['current_cat' => null]); ?>
-    <?php get_footer('shop'); ?>
 </div>
+<?php get_footer('shop'); ?>
